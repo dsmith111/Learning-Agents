@@ -5,7 +5,6 @@ clf
 import World
 global world
 world = World;
-player = world.player;
 world.render()
 iterations = 1000;
 t = 1;
@@ -44,34 +43,50 @@ Q = containers.Map(qkeys, qvalues);
 
 % While loop to indefintely run the agent
 for i = 1:iterations
-
     % Pick Action
-    [maxq, maxaction] = maxQ(player);
+    [maxq, maxaction] = maxQ(world.player);
     [player, action, reward, newplayer] = take_action(maxaction);
 
     % Update Q
     [maxq, maxaction] = maxQ(newplayer);
-    update_q(player, action, learning_rate, (r + (discount*maxq)))
-
+    update_q(player, action, learning_rate, (reward + (discount*maxq)))
     % Check if restart
     t = t + 1;
     if world.restart
-
+        world.restart_program()
     end
 
     % Update learning rate
-    learning_rate = learning_rate/10;
+    learning_rate = power(t,-0.1);
+
+    % At the end, render map
+    world.render()
+    tr = world.player(1);
+    tc = world.player(2);
+    tall = sub2ind([world.mapsize, world.mapsize], tr, tc);
+    temp = Q(tall);
 
     % Pause for readability
-    pause(1)
+    pause(10^-9)
+%     drawnow
 end
 
 
-% Select action based on max q
+function update_q(player, action, learning_rate, temporal_dif)
+    global Q
+    global world
+    r = player(1);
+    c = player(2);
+    index = sub2ind([world.mapsize, world.mapsize], r, c);
+    temp_state = Q(index);
+    temp_action = temp_state(action);
+    temp_action = temp_action * (1 - learning_rate);
+    temp_action = temp_action + (learning_rate * temporal_dif);
+    temp_state(action) = temp_action;
+    Q(index) = temp_state;
 
-%
 
-% At the end, render map
+end
 
 
 
@@ -79,6 +94,7 @@ end
 
 function [val, act] = maxQ(player)
     global Q
+    global world
     index = sub2ind([world.mapsize, world.mapsize], player(1), player(2));
     val = inf;
     act = "";
@@ -97,14 +113,14 @@ end
 function [player, retaction, reward, newplayer] = take_action(action)
     global world
     actions = world.actions;
+    reward = -world.score;
     player = world.player;
-    reward = world.score;
 
     if action == string(actions{1})
-        world.try_move(-1, 0)
+        world.try_move(1, 0)
 
     elseif action == string(actions{2})
-        world.try_move(1, 0)
+        world.try_move(-1, 0)
 
     elseif action == string(actions{3})
         world.try_move(0, -1)
@@ -118,5 +134,6 @@ function [player, retaction, reward, newplayer] = take_action(action)
     retaction = action;
     newplayer = world.player;
     reward = reward + world.score;
+
 
 end
