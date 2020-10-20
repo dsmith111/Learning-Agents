@@ -6,7 +6,7 @@ import World
 global world
 world = World;
 world.render()
-iterations = 1000;
+iterations = 10000000;
 t = 1;
 actions = world.actions;
 global Q
@@ -42,7 +42,7 @@ Q = containers.Map(qkeys, qvalues);
 
 
 % While loop to indefintely run the agent
-for i = 1:iterations
+while true
     % Pick Action
     [maxq, maxaction] = maxQ(world.player);
     [player, action, reward, newplayer] = take_action(maxaction);
@@ -54,21 +54,33 @@ for i = 1:iterations
     t = t + 1;
     if world.restart
         world.restart_program()
+        discount = 0.3;
     end
 
     % Update learning rate
-    learning_rate = power(t,-0.1);
-
+    learning_rate = power(t,-0.01);
+%     discount = (discount*1.01);
+%     if discount > 1
+%         discount = 0.3;
+%     end
+%
     % At the end, render map
-    world.render()
+
+    if world.iteration >= 600
+        world.render()
+    end
     tr = world.player(1);
     tc = world.player(2);
     tall = sub2ind([world.mapsize, world.mapsize], tr, tc);
     temp = Q(tall);
 
     % Pause for readability
+
     pause(10^-9)
 %     drawnow
+    if world.iteration >= 750
+        break
+    end
 end
 
 

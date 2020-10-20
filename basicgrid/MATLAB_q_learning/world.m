@@ -7,7 +7,7 @@ classdef World < handle
     %   move
 
     properties
-        player = [1, 1];
+        player = [10, 10];
         mapsize = 20;
         special
         mapsizer = [20, 1];
@@ -31,22 +31,31 @@ classdef World < handle
         end
 
         function render(obj)
-            hold on;
-            % Plot map
-            scatter(obj.mapsizec, obj.mapsizer, "white")
-            scatter(obj.walls(:,2)+.5, obj.walls(:,1)+.5, "black", 'square', ...
-                    "filled","SizeData",obj.wall_thickness*2)
-            % Plot agent
-            scatter(obj.player(2)+.5, obj.player(1)+.5, [], obj.agent_color,"filled",'square', ...
-                "SizeData",obj.wall_thickness/2)
 
-            %Plot end
-            green = obj.special('green');
-            red = obj.special('red');
-            scatter(green(2)+.5, green(1)+.5, 'green', "filled", 'square',"SizeData", ...
-                obj.wall_thickness)
-            scatter(red(2)+.5, red(1)+.5, 'red', "filled", 'square',"SizeData", ...
-                obj.wall_thickness)
+            h = figure(2);
+            for i = 1:2
+                figure(i)
+                hold on;
+                if i == 2
+                    cla(h)
+                end
+
+                % Plot map
+                scatter(obj.mapsizec, obj.mapsizer, "white")
+                scatter(obj.walls(:,2)+.5, obj.walls(:,1)+.5, "black", 'square', ...
+                        "filled","SizeData",obj.wall_thickness*2)
+                % Plot agent
+                scatter(obj.player(2)+.5, obj.player(1)+.5, [], obj.agent_color,"filled",'square', ...
+                    "SizeData",obj.wall_thickness/2)
+
+                %Plot end
+                green = obj.special('green');
+                red = obj.special('red');
+                scatter(green(2)+.5, green(1)+.5, 'green', "filled", 'square',"SizeData", ...
+                    obj.wall_thickness)
+                scatter(red(2)+.5, red(1)+.5, 'red', "filled", 'square',"SizeData", ...
+                    obj.wall_thickness)
+            end
 
         end
 
@@ -104,12 +113,20 @@ classdef World < handle
         end
 
         function restart_program(obj)
-            obj.player = [1, 1];
-            obj.score = 1;
+            obj.player = [randi(19)+1, randi(19)+1];
             obj.restart = false;
             obj.iteration = obj.iteration + 1;
-            temp = randi(3);
-            obj.agent_color(temp) = rand;
+            obj.agent_color = [rand rand rand];
+
+
+            if mod(obj.iteration,1) == 0
+                figure(3)
+                hold on;
+                scatter(obj.iteration, obj.score)
+
+            end
+            obj.score = 1;
+
         end
     end
 end
