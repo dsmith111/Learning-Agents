@@ -66,7 +66,7 @@ while true
 %
     % At the end, render map
 
-    if world.iteration >= 600
+    if world.iteration >= 600% || world.iteration == 1
         world.render()
     end
     tr = world.player(1);
