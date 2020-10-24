@@ -1,132 +1,151 @@
+clear
+clc
+clf
 
-classdef World < handle
-    %WORLD Create world for agent to explore
-    %   This class will create a world in the form of a matrix to allow the
-    %   agent to explore. The class will also include methods that will
-    %   create the agent's avatar as well as methods which allow for it to
-    %   move
+import World
+global world
+world = World;
+world.render()
+iterations = 10000000;
+t = 1;
+actions = world.actions;
+global Q
+global discount
+global learning_rate
+discount = 0.3;
+learning_rate = 1;
 
-    properties
-        player = [10, 10];
-        mapsize = 20;
-        special
-        mapsizer = [20, 1];
-        mapsizec = [20, 1];
-        walk_reward = -0.04
-        walls = [[2, 2]; [2, 3]; [3, 2]; [7, 1]; [12, 5]; [13, 10];...
-            [16, 18]; [1, 7]; [10, 10];[1,6];[2,6];[3,6];[3,7];...
-            [6,12];[7,12];[8,12];[6,4];[7,4];[9,15];[]]
-        score = 1;
-        wall_thickness = 2*(10^2)
-        actions = {'up','down','left','right'}
-        restart = false;
-        iteration = 1;
-        agent_color = [.5 .5 1];
+
+% Initialize Q-Table
+
+% For loop adding each state to the Q-table
+qkeys = {};
+qvalues = {};
+
+
+for r = 1:world.mapsize
+
+    for c = 1:world.mapsize
+        % Assign coordinates, action and q to a dictionary
+        % Q('ij')('action')||('q')
+        index = sub2ind([world.mapsize, world.mapsize], r, c);
+        qkeys{r, c} = index;
+        temp = ones([1, length(actions)]) * 0.1;
+        qvalues{r, c} = containers.Map(actions, temp);
 
     end
 
-    methods
-        function obj = World()
-            obj.special = containers.Map({'green', 'red'}, {[14, 14, 10], [10, 11, -10]});
-        end
+end
 
-        function render(obj)
-
-            h = figure(2);
-            for i = 1:2
-                figure(i)
-                hold on;
-                if i == 2
-                    cla(h)
-                end
-
-                % Plot map
-                scatter(obj.mapsizec, obj.mapsizer, "white")
-                scatter(obj.walls(:,2)+.5, obj.walls(:,1)+.5, "black", 'square', ...
-                        "filled","SizeData",obj.wall_thickness*2)
-                % Plot agent
-                scatter(obj.player(2)+.5, obj.player(1)+.5, [], obj.agent_color,"filled",'square', ...
-                    "SizeData",obj.wall_thickness/2)
-
-                %Plot end
-                green = obj.special('green');
-                red = obj.special('red');
-                scatter(green(2)+.5, green(1)+.5, 'green', "filled", 'square',"SizeData", ...
-                    obj.wall_thickness)
-                scatter(red(2)+.5, red(1)+.5, 'red', "filled", 'square',"SizeData", ...
-                    obj.wall_thickness)
-            end
-
-        end
-
-        function try_move(obj, dr, dc)
-
-            if obj.restart == true
-                obj.restart_program()
-            end
-
-            new_row = obj.player(1) + dr;
-            new_col = obj.player(2) + dc;
-            obj.score = obj.score + obj.walk_reward;
-
-           if (new_row >= 1) && (new_row <= obj.mapsize) && (new_col >= 1)...
-                   && (new_col <= obj.mapsize) && ~obj.check(new_row, new_col)
-            obj.player = [new_row, new_col];
-
-
-           end
-
-           colorkeys = obj.special.keys;
-           for i = 1:length(obj.special)
-               temp_info = obj.special(colorkeys{i});
-
-               if new_row == temp_info(1) && new_col == temp_info(2)
-                   obj.score = obj.score + temp_info(3) - obj.walk_reward;
-                       if obj.score < 0
-                            disp("Failed. Score:")
-                             disp(obj.score)
-                             obj.restart = true;
-
-                       else
-                           disp("Success. Score:")
-                           disp(obj.score)
-                           obj.restart = true;
-                       end
-
-               end
-
-
-           end
+Q = containers.Map(qkeys, qvalues);
 
 
 
-        end
+% While loop to indefintely run the agent
+while true
+    % Pick Action
+    [maxq, maxaction] = maxQ(world.player);
+    [player, action, reward, newplayer] = take_action(maxaction);
 
-        function inside = check(obj, new_row, new_col)
-            inside = false;
-            for i = 1:length(obj.walls)
-                if isequal([new_row, new_col], obj.walls(i,:))
-                    inside = true;
-                    return
-                end
-             end
-        end
+    % Update Q
+    [maxq, maxaction] = maxQ(newplayer);
+    update_q(player, action, learning_rate, (reward + (discount*maxq)))
+    % Check if restart
+    t = t + 1;
+    if world.restart
+        world.restart_program()
+        discount = 0.3;
+    end
 
-        function restart_program(obj)
-            obj.player = [randi(19)+1, randi(19)+1];
-            obj.restart = false;
-            obj.iteration = obj.iteration + 1;
-            obj.agent_color = [rand rand rand];
+    % Update learning rate
+    learning_rate = power(t,-0.01);
+%     discount = (discount*1.01);
+%     if discount > 1
+%         discount = 0.3;
+%     end
+%
+    % At the end, render map
+
+    if world.iteration >= 600% || world.iteration == 1
+        world.render()
+    end
+    tr = world.player(1);
+    tc = world.player(2);
+    tall = sub2ind([world.mapsize, world.mapsize], tr, tc);
+    temp = Q(tall);
+
+    % Pause for readability
+
+    pause(10^-9)
+%     drawnow
+    if world.iteration >= 750
+        break
+    end
+end
 
 
-            if mod(obj.iteration,1) == 0
-                figure(3)
-                hold on;
-                scatter(obj.iteration, obj.score)
+function update_q(player, action, learning_rate, temporal_dif)
+    global Q
+    global world
+    r = player(1);
+    c = player(2);
+    index = sub2ind([world.mapsize, world.mapsize], r, c);
+    temp_state = Q(index);
+    temp_action = temp_state(action);
+    temp_action = temp_action * (1 - learning_rate);
+    temp_action = temp_action + (learning_rate * temporal_dif);
+    temp_state(action) = temp_action;
+    Q(index) = temp_state;
 
-            end
-            obj.score = 1;
 
+end
+
+
+
+
+
+function [val, act] = maxQ(player)
+    global Q
+    global world
+    index = sub2ind([world.mapsize, world.mapsize], player(1), player(2));
+    val = inf;
+    act = "";
+    for action = Q(index).keys
+        temp = Q(index);
+        taction = string(action);
+        if val == inf || temp(taction) > val
+            val = temp(taction);
+            act = string(taction);
         end
     end
+
+end
+
+
+function [player, retaction, reward, newplayer] = take_action(action)
+    global world
+    actions = world.actions;
+    reward = -world.score;
+    player = world.player;
+
+    if action == string(actions{1})
+        world.try_move(1, 0)
+
+    elseif action == string(actions{2})
+        world.try_move(-1, 0)
+
+    elseif action == string(actions{3})
+        world.try_move(0, -1)
+
+    elseif action == string(actions{4})
+        world.try_move(0, 1)
+
+    else
+        return
+    end
+    retaction = action;
+    newplayer = world.player;
+    reward = reward + world.score;
+
+
 end
